@@ -1,0 +1,21 @@
+# Claude Code local config (do not share)
+.claude/
+
+# Build artifacts
+*.o
+*.out
+hello
+a.out
+
+# CUDA / binaries
+*.exe
+
+# Datasets (generated — too large to commit)
+*.bin
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
