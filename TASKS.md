@@ -123,12 +123,20 @@ No emailing files around.
 
 ---
 
-## Mudrik — Large-scale runs on the GPU machine
-**Owns:** the final results (correctness at scale + benchmarks)
+## Mudrik — Repo setup + large-scale runs on the GPU machine
+**Owns:** the GitHub repo + folder skeleton, and the final results (correctness at scale + benchmarks)
 
-**What to do**
+**What to do — Part A: repo setup (FRIDAY, first thing — unblocks everyone)**
+1. Create the GitHub repo `cryptography-on-gpu` and add all 5 members as collaborators.
+2. Create the **modular folder skeleton** from `REPO_STRUCTURE.md` (folder per member,
+   shared `include/`, `data/`+`results/` gitignored). Commit each folder with a placeholder
+   README so they exist in Git from the start.
+3. Add the `.gitignore` (ignore `data/*.bin`, binaries, `build/`) and push to `main`.
+4. Tell everyone the repo URL + their folder so they can clone and start pushing.
+
+**What to do — Part B: large-scale runs (SAT evening → SUN)**
 1. Set up the machine once: confirm `nvidia-smi` + `nvcc --version`, install `libssl-dev`,
-   clone the repo.
+   `git clone` the repo.
 2. Once the others' code works on small data (Sat evening), **run the full pipeline big**:
    - Karan's generator → 1M then 10M dataset.
    - Anand's kernel → `gpu_digests.bin`.
@@ -158,11 +166,13 @@ Each member writes the section for their own piece; Mohsin stitches it together:
 ## Timeline (Fri → Sun)
 
 ### Friday (today) — setup & unblock
+- **Mudrik (FIRST):** create the GitHub repo + modular folder skeleton (`REPO_STRUCTURE.md`),
+  add everyone as collaborator, push `.gitignore`. Share the URL. *This unblocks all pushes.*
 - **Anand:** lead 15-min sync, lock `IO_CONTRACT.md`, get `sha256_multi.cu` printing `ALL PASS`.
 - **Mohsin:** start the `Makefile`; everyone runs `colab_starter.ipynb` → `SETUP OK`.
 - **Mudrik:** set up the GPU machine (driver, nvcc, libssl-dev, clone repo).
 - **Karan:** start porting the generator to C++/OpenSSL.
-- ✅ End of Friday: contract agreed, everyone's GPU compiles, Anand's base passes.
+- ✅ End of Friday: repo live, contract agreed, everyone's GPU compiles, Anand's base passes.
 
 ### Saturday — build it (the big day)
 - **Karan:** finish C++ generator → small dataset out by morning, then a 1M set.
