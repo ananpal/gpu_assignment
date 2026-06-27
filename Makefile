@@ -1,4 +1,4 @@
-# GPU SHA-256 — Group 29 build system
+# GPU SHA-256 build system
 
 CXX      ?= g++
 NVCC     ?= nvcc
@@ -28,7 +28,7 @@ DATA_FILES := messages.bin offsets.bin lengths.bin meta.txt expected_digests.bin
 
 help:
 	@echo "================================================================"
-	@echo "  GPU SHA-256 — Makefile | Group 29"
+	@echo "  GPU SHA-256 — Makefile"
 	@echo "================================================================"
 	@echo ""
 	@echo "Targets:"

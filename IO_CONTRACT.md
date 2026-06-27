@@ -1,25 +1,24 @@
 # I/O Contract — GPU SHA-256 Project
 
 **Group:** Group 29
-**Owner:** Anand Pal (G25AIT1019) — Algorithm & Spec
+**Owner:** M1 — Algorithm & Spec (see [TASKS.md](TASKS.md) for roster)
 **Status:** Day-1 deliverable. This is the single source of truth. If a format
 needs to change, change it HERE first, then tell the team — do not change it
 silently in your own code.
 
 ---
 
-## 0. Member mapping
+## 0. Module mapping
 
-| Member | Roll No. | Responsibility |
-|--------|----------|----------------|
-| Anand Pal | G25AIT1019 | I/O contract + CUDA SHA-256 kernel |
-| Arundhati | G25AIT1033 | Correctness validation |
-| Mohshinsha Harunsha Shahmadar | G25AIT1093 | Benchmark harness + Makefile |
-| Mudrik Kaushik | G25AIT1096 | Repo setup + large-scale GPU runs |
-| Karan Kapoor | G25AIT1233 | CPU reference (OpenSSL) + dataset generator |
+| Module | Responsibility |
+|--------|----------------|
+| M1 | I/O contract + CUDA SHA-256 kernel |
+| M2 | CPU reference (OpenSSL) + dataset generator |
+| M4 | Correctness validation |
+| M5 | Benchmark harness + Makefile |
+| — | Repo setup + large-scale GPU runs (`results/`) |
 
-> **Module labels in §3–§8:** M1 = Anand (spec + kernel), M2 = Karan, M4 = Arundhati, M5 = Mohshinsha.
-> Mudrik owns repo infrastructure and large-scale runs on the GPU machine.
+> Team roster (names and roll numbers): [TASKS.md](TASKS.md).
 
 ---
 
@@ -159,7 +158,7 @@ M1 writes:
 > Keep `int` = 32-bit signed. If we ever exceed ~2 billion total bytes we switch
 > offsets to `size_t` — flag M1 first.
 
-Shared read/write helpers live in `include/dataset_io.hpp`.
+> Shared read/write helpers will live in `include/dataset_io.hpp` (added by module owners).
 
 ---
 

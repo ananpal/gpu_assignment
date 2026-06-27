@@ -1,4 +1,4 @@
-# Makefile Guide — Group 29 GPU SHA-256
+# Makefile Guide — GPU SHA-256
 
 This project uses a **Makefile** to build each module and to show what is done vs still missing. Run all commands from the **repo root** (`gpu_assignment/`).
 
@@ -212,9 +212,9 @@ Day 3   make run N=1000000   # large-scale on GPU machine
 
 ---
 
-## Who owns which task?
+## Module labels
 
-The Makefile shows **tasks only**, not names. For the full team roster and owners, see [TASKS.md](../TASKS.md).
+The Makefile shows **tasks only**. Module labels (M1, M2, M4, M5) and the team roster are in [TASKS.md](../TASKS.md) and [IO_CONTRACT.md](../IO_CONTRACT.md).
 
 ---
 
