@@ -51,29 +51,41 @@ status:
 	@echo "  PROJECT STATUS — required files vs present"
 	@echo "================================================================"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(SHA256_CUH)" TASK="I/O contract + device SHA-256 helpers"
+		FILE="$(SHA256_CUH)" TASK="I/O contract + device SHA-256 helpers" \
+		OWNER="Anand Pal (G25AIT1019)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(KERNEL_SRC)" TASK="CUDA kernel; write gpu_digests.bin"
+		FILE="$(KERNEL_SRC)" TASK="CUDA kernel; write gpu_digests.bin" \
+		OWNER="Anand Pal (G25AIT1019)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(CPU_REF_SRC)" TASK="OpenSSL dataset generator + CPU reference"
+		FILE="$(CPU_REF_SRC)" TASK="OpenSSL dataset generator + CPU reference" \
+		OWNER="Karan Kapoor (G25AIT1233)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(VALIDATE_SRC)" TASK="memcmp gpu_digests vs expected_digests"
+		FILE="$(VALIDATE_SRC)" TASK="memcmp gpu_digests vs expected_digests" \
+		OWNER="Arundhati (G25AIT1033)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(BENCHMARK_SRC)" TASK="CUDA event timing; hashes/sec; GB/s"
+		FILE="$(BENCHMARK_SRC)" TASK="CUDA event timing; hashes/sec; GB/s" \
+		OWNER="Mohshinsha Harunsha Shahmadar (G25AIT1093)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(DATASET_IO_HPP)" TASK="shared: dataset struct + read/write declarations"
+		FILE="$(DATASET_IO_HPP)" TASK="shared: dataset struct + read/write declarations" \
+		OWNER="Anand Pal (G25AIT1019)"
 	@$(MAKE) --no-print-directory _check_file \
-		FILE="$(DATASET_IO_CPP)" TASK="shared (optional): dataset .bin I/O implementation"
+		FILE="$(DATASET_IO_CPP)" TASK="shared (optional): dataset .bin I/O implementation" \
+		OWNER="Anand Pal (G25AIT1019)"
 	@echo ""
 	@echo "--- data/ artifacts (generated at runtime, not committed) ---"
 	@for f in $(DATA_FILES); do \
+		case "$$f" in \
+			gpu_digests.bin) owner="Anand Pal (G25AIT1019)" ;; \
+			*) owner="Karan Kapoor (G25AIT1233)" ;; \
+		esac; \
 		if [ -f "$(DATA_DIR)/$$f" ]; then echo "  [ok]   $(DATA_DIR)/$$f"; \
-		else echo "  [----] $(DATA_DIR)/$$f"; fi; \
+		else echo "  [----] $(DATA_DIR)/$$f  → $$owner"; fi; \
 	done
 	@echo ""
 	@echo "--- large-scale GPU runs ---"
-	@echo "  Task: repo setup, results/ logs, charts, GPU specs"
-	@echo "  Run:  make run N=1000000  (after ALL MATCH on small data)"
+	@echo "  Task:  repo setup, results/ logs, charts, GPU specs"
+	@echo "  Owner: Mudrik Kaushik (G25AIT1096)"
+	@echo "  Run:   make run N=1000000  (after ALL MATCH on small data)"
 
 pipeline:
 	@echo "================================================================"
@@ -174,6 +186,7 @@ $(CPU_REF_SRC):
 	@$(MAKE) --no-print-directory _missing \
 		TASKS="OpenSSL SHA-256 reference, NIST vectors, write .bin dataset" \
 		FILE="$@" \
+		OWNER="Karan Kapoor (G25AIT1233)" \
 		OUTPUT="./$(BUILD_DIR)/cpu_reference <N> $(DATA_DIR)/ -> messages.bin, offsets.bin, lengths.bin, meta.txt, expected_digests.bin"
 	@false
 
@@ -181,6 +194,7 @@ $(KERNEL_SRC):
 	@$(MAKE) --no-print-directory _missing \
 		TASKS="CUDA sha256_kernel, load dataset, write gpu_digests.bin" \
 		FILE="$@" \
+		OWNER="Anand Pal (G25AIT1019)" \
 		OUTPUT="./$(BUILD_DIR)/sha256_gpu $(DATA_DIR)/ -> gpu_digests.bin"
 	@false
 
@@ -188,6 +202,7 @@ $(VALIDATE_SRC):
 	@$(MAKE) --no-print-directory _missing \
 		TASKS="slot-by-slot memcmp, edge cases, print ALL MATCH" \
 		FILE="$@" \
+		OWNER="Arundhati (G25AIT1033)" \
 		OUTPUT="./$(BUILD_DIR)/validate $(DATA_DIR)/ -> ALL MATCH"
 	@false
 
@@ -195,6 +210,7 @@ $(BENCHMARK_SRC):
 	@$(MAKE) --no-print-directory _missing \
 		TASKS="CUDA event timers, hashes/sec, GB/s, CPU baseline" \
 		FILE="$@" \
+		OWNER="Mohshinsha Harunsha Shahmadar (G25AIT1093)" \
 		OUTPUT="./$(BUILD_DIR)/benchmark $(DATA_DIR)/ -> timing table"
 	@false
 
@@ -218,13 +234,14 @@ _check_file:
 	@if [ -f "$(FILE)" ]; then \
 		echo "  [ok]   $(FILE)  — $(TASK)"; \
 	else \
-		echo "  [MISS] $(FILE)  — $(TASK)"; \
+		echo "  [MISS] $(FILE)  — $(TASK)  → $(OWNER)"; \
 	fi
 
 _missing:
 	@echo ""
 	@echo "----------------------------------------------------------------"
 	@echo "  MISSING: $(FILE)"
+	@echo "  Owner:   $(OWNER)"
 	@echo "  Tasks:   $(TASKS)"
 	@echo "  Expected output when implemented:"
 	@echo "    $(OUTPUT)"
