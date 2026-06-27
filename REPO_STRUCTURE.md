@@ -1,6 +1,7 @@
 # Repository Structure — GPU SHA-256
 
-**Owner of setup:** Mudrik (creates the repo + skeleton Friday, first thing).
+**Group:** Group 29
+**Owner of setup:** Mudrik Kaushik (creates the repo + skeleton Friday, first thing).
 **Goal:** every member owns a folder, pushes independently with near-zero merge
 conflicts, and — if someone is unavailable — anyone can pick up their piece because
 each folder is self-documented and the shared interfaces are defined once.
@@ -21,19 +22,21 @@ each folder is self-documented and the shared interfaces are defined once.
 ## Folder layout
 
 ```
-cryptography-on-gpu/
+gpu_assignment/
 ├── README.md                 # overview, build/run, team table
 ├── IO_CONTRACT.md            # data format spec            (owner: Anand)
 ├── TASKS.md                  # who does what + timeline
 ├── REPO_STRUCTURE.md         # this file
-├── Makefile                  # builds every module          (owner: Mohsin)
+├── Makefile                  # builds every module          (owner: Mohshinsha)
 ├── .gitignore                # ignores data/*.bin, binaries, build/
 │
 ├── include/                  # SHARED code everyone depends on
 │   ├── sha256.cuh            # device SHA-256 functions      (owner: Anand)
-│   └── dataset_io.hpp        # read/write the .bin files     (owner: Anand, shared)
+│   └── dataset_io.hpp        # read/write the .bin files     (shared)
 │
 ├── src/
+│   ├── common/
+│   │   └── dataset_io.cpp    # dataset I/O implementation
 │   ├── kernel/               # Anand — the GPU program
 │   │   ├── sha256_gpu.cu
 │   │   └── README.md         # status + how to build/run
@@ -43,7 +46,7 @@ cryptography-on-gpu/
 │   ├── validate/             # Arundhati — correctness checker
 │   │   ├── validate.cpp
 │   │   └── README.md
-│   └── benchmark/            # Mohsin — timing harness
+│   └── benchmark/            # Mohshinsha — timing harness
 │       ├── benchmark.cu
 │       └── README.md
 │
@@ -64,7 +67,7 @@ cryptography-on-gpu/
         ├── 02_cpu_reference.md   # Karan
         ├── 03_kernel.md          # Anand
         ├── 04_validation.md      # Arundhati
-        ├── 05_benchmark.md       # Mohsin / Mudrik
+        ├── 05_benchmark.md       # Mohshinsha / Mudrik
         └── 06_security.md        # all
 ```
 
@@ -97,11 +100,12 @@ void write_dataset(const std::string& dir, const Dataset& d,
                    const std::vector<unsigned char>& digests);  // Karan uses this
 Dataset read_dataset(const std::string& dir);                   // Anand/Arundhati use this
 std::vector<unsigned char> read_digests(const std::string& path);
+void write_digests(const std::string& path, const std::vector<unsigned char>& digests);
 ```
 Because everyone calls these, the on-disk format is guaranteed identical across modules.
 
 **`include/sha256.cuh`** — the device `__constant__ K[]`, macros, `sha256_transform`,
-`sha256_hash` (from `sha256_multi.cu`). Both `kernel/` and `benchmark/` `#include` it,
+`sha256_hash`. Both `kernel/` and `benchmark/` `#include` it,
 so the hash math exists in exactly one place.
 
 ---
@@ -112,7 +116,7 @@ Folder isolation means you can commit straight to `main` with little conflict ri
 use light branches for safety + review:
 
 1. Each member works on a branch named for their piece:
-   `kernel-anand`, `cpu-karan`, `validate-arundhati`, `bench-mohsin`.
+   `kernel-anand`, `cpu-karan`, `validate-arundhati`, `bench-mohshinsha`.
 2. Push your branch, open a Pull Request, one other member glances at it, merge to `main`.
 3. **Pull `main` before you start each session** so you have everyone's latest (Mudrik
    especially — his big runs need the newest code).
@@ -123,14 +127,14 @@ use light branches for safety + review:
 
 ---
 
-## Build targets (Mohsin's `Makefile`)
+## Build targets (Mohshinsha's `Makefile`)
 
 One command per module so anyone can build any piece:
 ```
 make cpu_reference   # builds Karan's generator  (g++ ... -lssl -lcrypto)
 make kernel          # builds Anand's GPU program (nvcc)
 make validate        # builds Arundhati's checker (g++)
-make benchmark       # builds Mohsin's timing     (nvcc)
+make benchmark       # builds Mohshinsha's timing (nvcc)
 make all             # everything
 ```
 

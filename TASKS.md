@@ -129,7 +129,7 @@ No emailing files around.
 **Owns:** the GitHub repo + folder skeleton, and the final results (correctness at scale + benchmarks)
 
 **What to do — Part A: repo setup (FRIDAY, first thing — unblocks everyone)**
-1. Create the GitHub repo `cryptography-on-gpu` and add all 5 members as collaborators.
+1. Ensure the GitHub repo `gpu_assignment` has all 5 members as collaborators.
 2. Create the **modular folder skeleton** from `REPO_STRUCTURE.md` (folder per member,
    shared `include/`, `data/`+`results/` gitignored). Commit each folder with a placeholder
    README so they exist in Git from the start.
