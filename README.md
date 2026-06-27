@@ -1,42 +1,63 @@
-# Cryptography on GPU
+# Cryptography on GPU — Group 29
 
-Parallel **SHA-256** hashing on the GPU using **CUDA** — a team project (Group 29).
+Parallel **SHA-256** hashing on the GPU using **CUDA**. One GPU thread per message, millions of messages in parallel. Correctness verified against OpenSSL. Benchmarked GPU vs CPU throughput.
 
-We compute SHA-256 digests for millions of independent messages in parallel
-(one GPU thread per message), verify the GPU output against a trusted CPU
-reference (OpenSSL), and benchmark GPU vs CPU throughput.
-
-## Layout
+## Repo layout
 
 ```
-include/            shared code (sha256.cuh, dataset_io.hpp)
-src/kernel/         CUDA SHA-256 kernel        (Anand)
-src/cpu_reference/  dataset generator + reference (Karan)
-src/validate/       correctness checker        (Arundhati)
-src/benchmark/      throughput timing          (Mohshinsha)
-scripts/            colab_starter.ipynb, run_all.sh
-data/               generated datasets (gitignored)
-results/            benchmark output + charts  (Mudrik)
-docs/               day-wise plan, report
-```
+include/
+  sha256.cuh          device SHA-256 (constants, transform, hash, kernel)
+  sha256_gpu.hpp      host API declaration
 
-Each `src/` folder has its own README (status + how to build/run).
-See [REPO_STRUCTURE.md](REPO_STRUCTURE.md) for the full rationale.
+src/kernel/           Anand
+  sha256_gpu.cu       engine — implements sha256_gpu_hash(), no main()
+  hash_dataset.cu     driver — load data/, call engine, write gpu_digests.bin
+  sha256_smoke_test.cu quick 4-message correctness check
+
+src/cpu_reference/    Karan
+  cpu_reference.cpp   C++/OpenSSL dataset generator + trusted CPU reference
+  generate_dataset.py Python prototype (reference for the C++ port)
+
+src/validate/         Arundhati
+  validate.cpp        edge-case suite + full dataset GPU-vs-CPU check
+
+src/benchmark/        Mohshinsha
+  benchmark.cu        CUDA-event timing, GPU vs CPU hashes/sec and GB/s
+
+scripts/
+  colab_starter.ipynb GPU setup check (Colab)
+  run_all.sh          end-to-end pipeline
+
+data/                 generated datasets — gitignored
+results/              Mudrik's benchmark output + charts
+docs/                 day-wise plan (temporary)
+```
 
 ## Key docs
 
 | Doc | What it is |
 |---|---|
-| [IO_CONTRACT.md](IO_CONTRACT.md) | **Read first.** The data formats & function signatures everyone codes against. |
-| [TASKS.md](TASKS.md) | Who owns what + the rules that keep everyone unblocked. |
-| [REPO_STRUCTURE.md](REPO_STRUCTURE.md) | The modular folder design. |
+| [IO_CONTRACT.md](IO_CONTRACT.md) | **Read first.** Data formats and function signatures everyone codes against. |
+| [TASKS.md](TASKS.md) | Who owns what and the rules that keep everyone unblocked. |
 
-## Getting started (every member)
+## Getting started
 
-1. Open [Google Colab](https://colab.research.google.com) → **File → Upload notebook** → `scripts/colab_starter.ipynb`.
+1. Open Colab → **File → Upload notebook** → `scripts/colab_starter.ipynb`.
 2. **Runtime → Change runtime type → GPU → Save.**
-3. Run all cells. If the last cell prints `SETUP OK`, you're ready.
-4. Read [IO_CONTRACT.md](IO_CONTRACT.md) before writing any code.
-5. Find your task in [TASKS.md](TASKS.md) and work in your folder.
+3. Run all cells — last cell prints `SETUP OK` if ready.
+4. Read [IO_CONTRACT.md](IO_CONTRACT.md), find your task in [TASKS.md](TASKS.md).
 
-**Golden rule:** correctness before speed. Test the `""` and `"abc"` vectors first.
+## Build
+
+```bash
+# smoke test (verify the math works):
+nvcc src/kernel/sha256_smoke_test.cu -o sha256_smoke_test && ./sha256_smoke_test
+
+# hash a dataset (after cpu_reference generates data/):
+nvcc src/kernel/hash_dataset.cu src/kernel/sha256_gpu.cu -o hash_dataset && ./hash_dataset data
+
+# validate GPU vs CPU:
+nvcc src/validate/validate.cpp src/kernel/sha256_gpu.cu -o validate -lssl -lcrypto && ./validate data
+```
+
+**Rule:** correctness before speed. Run the smoke test and validator before benchmarking.

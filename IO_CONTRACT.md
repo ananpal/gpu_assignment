@@ -1,173 +1,134 @@
-# I/O Contract — GPU SHA-256 Project
+# I/O Contract — GPU SHA-256
 
-**Owner:** Anand (I/O contract)
-**Status:** This is the single source of truth for data formats. If a format needs
-to change, change it HERE first, then tell the team — never silently in your own code.
+**Owner:** Anand
+**Rule:** this is the single source of truth for data formats. Change it here first, then update your code — never the other way around.
 
 ---
 
-## 1. Project decisions (locked)
+## 1. Decisions (locked)
 
 | Decision | Choice |
 |---|---|
-| Algorithm | **SHA-256** (NIST FIPS 180-4) |
-| Output size | **32 bytes (256 bits)** per message — always |
-| Parallelization model | **One GPU thread hashes one message** |
-| Language / platform | **CUDA C/C++**, compiled with `nvcc` |
-| Reference platform | **OpenSSL `SHA256` (C++)** on CPU |
-| Byte order of digest | **Big-endian** (standard SHA-256 output order) |
-
-> We hash **many independent messages**, not one giant file. Each message is
-> small (a few bytes to a few KB). This is the "embarrassingly parallel" case.
+| Algorithm | SHA-256 (NIST FIPS 180-4) |
+| Output per message | 32 bytes (256 bits), always |
+| Parallelization | One GPU thread per message |
+| Language | CUDA C/C++, compiled with `nvcc` |
+| CPU reference | OpenSSL `SHA256()` (C++) |
+| Digest byte order | Big-endian (standard SHA-256) |
 
 ---
 
-## 2. The data formats (the actual contract)
+## 2. Data formats
 
-All four members code against exactly these structures.
+### Input to the kernel
 
-### 2.1 INPUT to the kernel
-
-The CPU packs all messages into **one big byte buffer**, plus two index arrays.
+All messages packed back-to-back in one byte buffer, plus two index arrays:
 
 | Name | Type | Meaning |
 |---|---|---|
-| `messages` | `unsigned char*` | All messages concatenated back-to-back, no separators |
-| `offsets` | `int*` (or `size_t*`) | `offsets[i]` = byte index in `messages` where message `i` starts |
+| `messages` | `unsigned char*` | All messages concatenated, no separators |
+| `offsets` | `int*` | `offsets[i]` = byte index where message `i` starts |
 | `lengths` | `int*` | `lengths[i]` = byte length of message `i` |
-| `num_messages` | `int` | Total number of messages |
+| `num_messages` | `int` | Total message count |
 
-**Example.** Three messages: `"abc"`, `"hello"`, `"hi"`.
-
+Example — three messages `"abc"`, `"hello"`, `"hi"`:
 ```
-messages =  a b c h e l l o h i        (10 bytes total, no gaps)
-index:      0 1 2 3 4 5 6 7 8 9
-
-offsets  = [0, 3, 8]      // "abc" starts at 0, "hello" at 3, "hi" at 8
-lengths  = [3, 5, 2]      // lengths in bytes
-num_messages = 3
+messages = abchellohi     (10 bytes, no gaps)
+offsets  = [0, 3, 8]
+lengths  = [3, 5, 2]
 ```
 
-> Rule: `offsets[i] + lengths[i] == offsets[i+1]` for all i (messages are tightly packed).
-> `offsets[0]` is always `0`. Total buffer size = `offsets[last] + lengths[last]`.
+Rule: messages are tightly packed — `offsets[0] = 0`, `offsets[i] + lengths[i] = offsets[i+1]`.
 
-### 2.2 OUTPUT from the kernel
+### Output from the kernel
 
 | Name | Type | Meaning |
 |---|---|---|
-| `digests` | `unsigned char*` | Output buffer, size = `num_messages * 32` bytes |
+| `digests` | `unsigned char*` | `num_messages * 32` bytes |
 
-- The digest for message `i` lives at bytes **`digests[i*32]` .. `digests[i*32 + 31]`**.
-- Each digest is exactly **32 bytes**, big-endian, raw bytes (NOT hex text).
-- Converting to the 64-char hex string is done on the **CPU side** for display/comparison.
+Digest for message `i` is at `digests[i*32 .. i*32+31]`. Raw bytes, not hex. Hex conversion happens on the CPU only.
 
-```
-digests:  [32 bytes for msg 0][32 bytes for msg 1][32 bytes for msg 2]...
-          ^i=0                ^i=1                ^i=2
-```
+### Core rule
 
-### 2.3 THE CORE RULE
-
-> **Thread `i` reads message `i` (using `offsets[i]`, `lengths[i]`) and writes
-> its 32-byte digest to `digests[i*32]`.**
-
-This single rule is why everything lines up. M2 generates message `i`, M3's
-thread `i` hashes it, M4 compares output slot `i` against M2's reference for
-message `i`.
+> **Thread `i` reads `messages[offsets[i] .. offsets[i]+lengths[i]]` and writes 32 bytes to `digests[i*32]`.**
 
 ---
 
-## 3. Function signatures (everyone uses these names)
+## 3. Function signatures
 
-### 3.1 The GPU kernel
-
+### GPU kernel (src/kernel/sha256_gpu.cu)
 ```c
 __global__ void sha256_kernel(
-    const unsigned char* messages,   // packed input buffer (device memory)
-    const int*           offsets,    // start index of each message
-    const int*           lengths,    // byte length of each message
-    unsigned char*       digests,    // output: num_messages * 32 bytes (device memory)
+    const unsigned char* messages,
+    const int*           offsets,
+    const int*           lengths,
+    unsigned char*       digests,
     int                  num_messages);
 ```
 
-### 3.2 The device helper
-
-```c
-// Hashes ONE message; writes exactly 32 bytes to `out`.
-__device__ void sha256_hash(const unsigned char* msg, int len, unsigned char* out);
+### Host API (include/sha256_gpu.hpp)
+```cpp
+std::vector<unsigned char> sha256_gpu_hash(
+    const unsigned char* messages, std::size_t total_bytes,
+    const int* offsets, const int* lengths, int num_messages);
 ```
 
-### 3.3 The CPU reference (M2 implements)
-
-Python reference that produces the EXACT same logical output:
-
-```python
-import hashlib
-
-def cpu_sha256(message: bytes) -> bytes:
-    """Return the 32-byte big-endian SHA-256 digest of one message."""
-    return hashlib.sha256(message).digest()   # .digest() = raw 32 bytes
+### CPU reference (src/cpu_reference/cpu_reference.cpp)
+```cpp
+// One message; returns 32 raw bytes.
+std::vector<unsigned char> cpu_sha256(const unsigned char* data, size_t len) {
+    std::vector<unsigned char> out(32);
+    SHA256(data, len, out.data());   // OpenSSL
+    return out;
+}
 ```
-
-M2 also provides the dataset in the packed format above, so M3/M4 can load it.
 
 ---
 
-## 4. Dataset format on disk (M2 produces, M3/M4/M5 consume)
+## 4. Dataset files on disk
 
-So the GPU program and the validator read the same files, M2 writes:
+Karan's generator writes these; the kernel, validator, and benchmark read them.
 
 | File | Contents |
 |---|---|
-| `messages.bin` | The packed `messages` byte buffer |
-| `offsets.bin` | `num_messages` 32-bit ints (little-endian on disk is fine) |
-| `lengths.bin` | `num_messages` 32-bit ints |
-| `meta.txt` | One line: `num_messages=<N>` |
-| `expected_digests.bin` | CPU reference output: `N * 32` bytes (for M4 to diff against) |
-
-> Keep `int` = 32-bit signed. If we ever exceed ~2 billion total bytes we switch
-> offsets to `size_t` — flag M1 first.
+| `messages.bin` | Packed messages buffer |
+| `offsets.bin` | `num_messages` × int32, little-endian |
+| `lengths.bin` | `num_messages` × int32, little-endian |
+| `meta.txt` | `num_messages=<N>` |
+| `expected_digests.bin` | CPU reference output: `N × 32` bytes |
+| `gpu_digests.bin` | GPU output written by `hash_dataset` |
 
 ---
 
-## 5. Mandatory test vectors (M2 provides, M4 checks FIRST)
+## 5. Test vectors (check these first — always)
 
-These are published correct answers. **If these don't match, stop and fix
-padding/endianness before testing anything else.**
-
-| Input | Correct SHA-256 (hex) |
+| Input | SHA-256 (hex) |
 |---|---|
-| `""` (empty) | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `""` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `"abc"` | `ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad` |
 | `"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"` | `248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1` |
 
-(Hex shown for humans; the kernel outputs the raw 32 bytes that hex-encode to this.)
+If these don't match, stop and fix padding/endianness before anything else.
 
 ---
 
-## 6. Edge cases everyone must agree on
+## 6. Edge cases (everyone must handle)
 
-1. **Empty message** (`length == 0`) is valid → must produce the empty-string digest above. SHA-256 padding handles this; don't special-case it away.
-2. **Out-of-range threads:** the kernel is launched with `num_blocks * threads_per_block >= num_messages`, so some threads have `i >= num_messages`. Those threads **must do nothing** (`if (i < num_messages)` guard).
-3. **Digest is raw bytes, not hex.** Hex conversion happens on the CPU only.
-4. **Message bytes are arbitrary** (can include `0x00`). Never treat messages as C strings / never rely on null terminators — always use `lengths[i]`.
-5. **Endianness:** SHA-256 processes message words and outputs the digest in **big-endian**. This is the #1 bug source — M3 must handle it inside `sha256_hash`.
+1. **Empty message** (`length == 0`) — valid; SHA-256 padding handles it. Do not special-case.
+2. **Out-of-range threads** — guard with `if (i < num_messages)` in the kernel.
+3. **Raw bytes only** — digests are raw bytes, not hex. Convert to hex on the CPU only.
+4. **Null bytes in messages** — never use `strlen`; always use `lengths[i]`.
+5. **Endianness** — SHA-256 is big-endian internally and on output. This is the #1 bug source.
 
 ---
 
-## 7. Launch configuration (M3, agreed default)
+## 7. Launch configuration
 
-```c
+```cpp
 int threadsPerBlock = 256;
 int numBlocks = (num_messages + threadsPerBlock - 1) / threadsPerBlock;
 sha256_kernel<<<numBlocks, threadsPerBlock>>>(
     d_messages, d_offsets, d_lengths, d_digests, num_messages);
 ```
 
-M5 may vary `threadsPerBlock` (128/256/512) during benchmarking — that's fine,
-it does not change the contract.
-
----
-
-> **Changing the format:** any change goes through Anand (contract owner) and is updated
-> in this file first. Team roles and the schedule live in [TASKS.md](TASKS.md).
+The benchmark may vary `threadsPerBlock` (128/256/512) — that does not change the contract.

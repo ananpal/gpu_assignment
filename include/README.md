@@ -1,15 +1,8 @@
-# include — Shared code (the glue)
+# include/ — Shared code
 
-**Owner:** Anand (shared) · **Status:** to build
+| File | What it is |
+|---|---|
+| `sha256.cuh` | Device SHA-256: `__constant__ K[]`, macros, `sha256_transform`, `sha256_hash`, `sha256_kernel`. Include in exactly one `.cu` per compiled program. |
+| `sha256_gpu.hpp` | Host API: declares `sha256_gpu_hash(...)`. Plain C++ — any `.cpp` or `.cu` can include it. |
 
-Code used by more than one module, defined **once** so it can't drift.
-
-## Files (to build)
-- `sha256.cuh` — the device SHA-256 (`__constant__ K[]`, macros, `sha256_transform`,
-  `sha256_hash`), lifted from `src/kernel/sha256_multi.cu`. Included by `kernel/` and `benchmark/`.
-- `dataset_io.hpp` — read/write the `data/*.bin` files (the IO_CONTRACT §4 format).
-  Used by `cpu_reference` (writer) and `kernel`/`validate` (readers).
-
-## Why this matters
-Because the writer and readers call the **same** `dataset_io.hpp`, the on-disk format
-is guaranteed identical across modules — this kills the most likely integration bug.
+Both headers are owned by Anand. Any change goes through him and through [IO_CONTRACT.md](../IO_CONTRACT.md).
