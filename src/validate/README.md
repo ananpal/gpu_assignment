@@ -1,6 +1,6 @@
 # src/validate — Correctness validation
 
-**Owner:** Arundhati · **Status:** in progress
+**Owner:** Arundhati · **Status:** done
 
 Confirms the GPU SHA-256 output matches a trusted CPU reference (OpenSSL).
 
@@ -21,6 +21,6 @@ nvcc validate.cpp ../kernel/sha256_gpu.cu -o validate -lssl -lcrypto
 Exit code 0 = all passed, 1 = something failed.
 
 ## Notes for anyone covering this
-- It calls the GPU through `include/sha256_gpu.hpp` — no CUDA knowledge needed here.
+- It calls the GPU through `include/sha256_gpu.hpp`.
 - The 55 / 56 / 64-byte cases are the padding boundaries; keep them in the suite.
 - Depends on the kernel engine `../kernel/sha256_gpu.cu` (the `sha256_gpu_hash` API).

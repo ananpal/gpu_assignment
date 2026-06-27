@@ -1,5 +1,5 @@
 // =====================================================================
-// validate.cpp — Correctness validation (Member 4 / Arundhati)
+// validate.cpp — Correctness validation (Arundhati)
 //
 // Confirms the GPU SHA-256 output matches a trusted CPU reference (OpenSSL).
 // Two parts:
