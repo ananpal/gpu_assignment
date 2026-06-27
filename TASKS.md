@@ -18,21 +18,72 @@
 
 ---
 
+## Who unblocks whom
+
+Work flows in **dependency order**. A task below cannot be finished (or trusted at scale) until its upstream tasks are done.
+
+```mermaid
+flowchart TD
+    subgraph day1 [Friday — unblock the team]
+        M1_contract["M1 Anand: lock IO_CONTRACT.md"]
+        M5_makefile["M5 Mohshinsha: Makefile + make status"]
+        repo["Mudrik: repo + collaborators + .gitignore"]
+    end
+
+    subgraph upstream [Saturday — build the pipeline]
+        M2["M2 Karan: cpu_reference\n→ messages.bin, expected_digests.bin"]
+        M1_kernel["M1 Anand: sha256_gpu.cu\n→ gpu_digests.bin"]
+        M4["M4 Arundhati: validate.cpp\n→ ALL MATCH"]
+        M5_bench["M5 Mohshinsha: benchmark.cu\n→ timing results"]
+    end
+
+    subgraph downstream [Sunday — scale on GPU machine]
+        mudrik_big["Mudrik: 1M–10M runs\n→ results/, charts, GPU specs"]
+    end
+
+    M1_contract --> M2
+    M1_contract --> M1_kernel
+    M5_makefile --> M2
+    M5_makefile --> M1_kernel
+    M5_makefile --> M4
+    M5_makefile --> M5_bench
+
+    M2 --> M1_kernel
+    M2 --> M4
+    M1_kernel --> M4
+    M4 --> M5_bench
+    M4 --> mudrik_big
+    M5_bench --> mudrik_big
+    repo --> mudrik_big
+```
+
+| Person | Unblocks | Why |
+|--------|----------|-----|
+| **Anand** (M1) | **Everyone** (Friday) | Locks data formats and kernel API in `IO_CONTRACT.md` — without this, M2/M4/M5 cannot code against the same layout |
+| **Mohshinsha** (M5) | **Everyone** (Friday) | `Makefile` + `make status` — so all modules build the same way once source files land |
+| **Mudrik** | **Everyone** (Friday) | Repo, folders, `.gitignore`, collaborators — so code is shared via Git, not ad hoc |
+| **Karan** (M2) | **Anand**, **Arundhati** | Produces dataset + `expected_digests.bin`; Anand needs input files; Arundhati can test logic against CPU ref before GPU is ready |
+| **Anand** (M1) | **Arundhati** | Produces `gpu_digests.bin`; validator cannot prove correctness without it |
+| **Arundhati** (M4) | **Mohshinsha**, **Mudrik** | `ALL MATCH` on small data is the gate for trustworthy benchmarks and large-scale runs |
+| **Mohshinsha** (M5) | **Mudrik** | Benchmark harness produces official GPU vs CPU numbers for the report |
+| **Mudrik** | **Report / submit** | Only person with the big GPU machine — final 1M–10M correctness + headline throughput |
+
+**Partial parallel work (before upstream is done):**
+
+| Can start early | Depends only on |
+|-----------------|-----------------|
+| Arundhati: validator structure + edge-case tests | `IO_CONTRACT.md`, Karan's `expected_digests.bin` (no GPU yet) |
+| Anand: device SHA-256 math in `sha256.cuh` | `IO_CONTRACT.md`, NIST vectors |
+| Mohshinsha: `Makefile`, report outline | `IO_CONTRACT.md` |
+| Karan: generator | `IO_CONTRACT.md` (after Friday lock) |
+
+---
+
 ## The key workflow: develop small (Colab) → run big (Mudrik's machine)
 
 Only Mudrik has the GPU machine. So **everyone develops and tests on Colab with a
 SMALL dataset** (1K–10K messages), and once it works, **Mudrik runs the big jobs**
 (1M–10M messages) on his machine for the final correctness check and benchmarks.
-
-```
-   Anand (kernel) ┐
-   Karan (data)   ├─ develop + test on COLAB, small data, push to Git
-   Arundhati(val) ┘            │
-                               ▼  (Saturday evening: everything works small)
-              Mudrik pulls from Git, runs BIG on his GPU machine:
-                 - final correctness validation (1M–10M messages)
-                 - official benchmarks + scaling curves + GPU specs
-```
 
 **Consequence:** Mudrik is *downstream* — his runs are only meaningful once the
 kernel, validator, and dataset all work. So the **Saturday-evening milestone**
@@ -129,7 +180,7 @@ No emailing files around.
 **Owns:** the GitHub repo + folder skeleton, and the final results (correctness at scale + benchmarks)
 
 **What to do — Part A: repo setup (FRIDAY, first thing — unblocks everyone)**
-1. Create the GitHub repo `cryptography-on-gpu` and add all 5 members as collaborators.
+1. Ensure the GitHub repo `gpu_assignment` has all 5 members as collaborators.
 2. Create the **modular folder skeleton** from `REPO_STRUCTURE.md` (folder per member,
    shared `include/`, `data/`+`results/` gitignored). Commit each folder with a placeholder
    README so they exist in Git from the start.
