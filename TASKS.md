@@ -1,18 +1,20 @@
 # Team Task Plan — GPU SHA-256 (C++ / CUDA)
 
+**Group:** Group 29
+
 **Deadline:** Sunday afternoon. **Today:** Friday.
 **Core language:** C++ (CUDA is C++; CPU reference uses OpenSSL in C++).
 **Working window:** Fri afternoon → Sat (full day) → Sun morning → Sun afternoon = submit.
 
 ## Team
 
-| Member | Role | Owns |
-|---|---|---|
-| **Anand** | I/O contract + CUDA kernel | `IO_CONTRACT.md`, `sha256_gpu.cu` |
-| **Karan** | CPU reference & dataset generator | `cpu_reference.cpp` |
-| **Arundhati** | Correctness validation tool | `validate.cpp` |
-| **Mohsin** | Benchmark harness + build system + report | `benchmark.cu`, `Makefile` |
-| **Mudrik** | Runs the full pipeline at scale on the GPU machine | final results + benchmarks |
+| Name | Roll No. | Role | Owns |
+|------|----------|------|------|
+| **Anand Pal** | G25AIT1019 | I/O contract + CUDA kernel | `IO_CONTRACT.md`, `sha256_gpu.cu` |
+| **Arundhati** | G25AIT1033 | Correctness validation tool | `validate.cpp` |
+| **Mohshinsha Harunsha Shahmadar** | G25AIT1093 | Benchmark harness + build system + report | `benchmark.cu`, `Makefile` |
+| **Mudrik Kaushik** | G25AIT1096 | Repo setup + large-scale GPU runs | GitHub repo, `results/` |
+| **Karan Kapoor** | G25AIT1233 | CPU reference & dataset generator | `cpu_reference.cpp` |
 
 ---
 
@@ -42,7 +44,7 @@ No emailing files around.
 
 ---
 
-## Anand — I/O contract + CUDA kernel
+## Anand Pal (G25AIT1019) — I/O contract + CUDA kernel
 **Owns:** `IO_CONTRACT.md`, `sha256_gpu.cu`
 
 **What to do**
@@ -62,7 +64,7 @@ No emailing files around.
 
 ---
 
-## Karan — CPU reference & dataset generator (C++ / OpenSSL)
+## Karan Kapoor (G25AIT1233) — CPU reference & dataset generator (C++ / OpenSSL)
 **Owns:** `cpu_reference.cpp`
 
 **What to do**
@@ -83,7 +85,7 @@ No emailing files around.
 
 ---
 
-## Arundhati — Correctness validation
+## Arundhati (G25AIT1033) — Correctness validation
 **Owns:** `validate.cpp`
 
 **What to do**
@@ -103,7 +105,7 @@ No emailing files around.
 
 ---
 
-## Mohsin — Benchmark harness + build system + report
+## Mohshinsha Harunsha Shahmadar (G25AIT1093) — Benchmark harness + build system + report
 **Owns:** `benchmark.cu`, `Makefile`, report assembly
 
 **What to do**
@@ -123,7 +125,7 @@ No emailing files around.
 
 ---
 
-## Mudrik — Repo setup + large-scale runs on the GPU machine
+## Mudrik Kaushik (G25AIT1096) — Repo setup + large-scale runs on the GPU machine
 **Owns:** the GitHub repo + folder skeleton, and the final results (correctness at scale + benchmarks)
 
 **What to do — Part A: repo setup (FRIDAY, first thing — unblocks everyone)**
@@ -141,7 +143,7 @@ No emailing files around.
    - Karan's generator → 1M then 10M dataset.
    - Anand's kernel → `gpu_digests.bin`.
    - Arundhati's `validate.cpp` → confirm **ALL MATCH** at scale.
-   - Mohsin's `benchmark.cu` → GPU-vs-CPU across sizes (1K→10M).
+   - Mohshinsha's `benchmark.cu` → GPU-vs-CPU across sizes (1K→10M).
 3. Produce the **headline numbers**: hashes/sec, GB/s, the **scaling curve**, and the exact
    GPU model/specs from `nvidia-smi` for the report.
 
@@ -154,9 +156,9 @@ No emailing files around.
 ---
 
 ## All — Report & security note
-Each member writes the section for their own piece; Mohsin stitches it together:
+Each member writes the section for their own piece; Mohshinsha stitches it together:
 - Algorithm overview (SHA-256) + parallel design (one thread per message).
-- Correctness results (Arundhati/Mudrik) + benchmark results & charts (Mohsin/Mudrik).
+- Correctness results (Arundhati/Mudrik) + benchmark results & charts (Mohshinsha/Mudrik).
 - **Security note:** GPUs make brute-forcing *fast* hashes cheap, which is why real password
   storage uses *slow, memory-hard* hashes (Argon2/bcrypt). Note where GPU crypto is useful
   (bulk hashing, integrity, mining) vs. a risk.
@@ -169,7 +171,7 @@ Each member writes the section for their own piece; Mohsin stitches it together:
 - **Mudrik (FIRST):** create the GitHub repo + modular folder skeleton (`REPO_STRUCTURE.md`),
   add everyone as collaborator, push `.gitignore`. Share the URL. *This unblocks all pushes.*
 - **Anand:** lead 15-min sync, lock `IO_CONTRACT.md`, get `sha256_multi.cu` printing `ALL PASS`.
-- **Mohsin:** start the `Makefile`; everyone runs `colab_starter.ipynb` → `SETUP OK`.
+- **Mohshinsha:** start the `Makefile`; everyone runs `colab_starter.ipynb` → `SETUP OK`.
 - **Mudrik:** set up the GPU machine (driver, nvcc, libssl-dev, clone repo).
 - **Karan:** start porting the generator to C++/OpenSSL.
 - ✅ End of Friday: repo live, contract agreed, everyone's GPU compiles, Anand's base passes.
@@ -178,7 +180,7 @@ Each member writes the section for their own piece; Mohsin stitches it together:
 - **Karan:** finish C++ generator → small dataset out by morning, then a 1M set.
 - **Anand:** kernel loads Karan's dataset, writes `gpu_digests.bin` (test small).
 - **Arundhati:** `validate.cpp` working + edge-case suite, run against Anand+Karan output.
-- **Mohsin:** `benchmark.cu` timing on small data; `make` builds everything.
+- **Mohshinsha:** `benchmark.cu` timing on small data; `make` builds everything.
 - 🎯 **End of Saturday (the milestone):** validator reports **ALL MATCH** on small data, all code pushed to Git.
 
 ### Sunday morning — scale up & benchmark (Mudrik's turn)
@@ -187,7 +189,7 @@ Each member writes the section for their own piece; Mohsin stitches it together:
 - **Arundhati:** lock the correctness claim; **Karan:** generate any extra dataset sizes Mudrik needs.
 
 ### Sunday afternoon — integrate & submit
-- **Mohsin:** assemble report + final results; **all:** write your section. **Submit.**
+- **Mohshinsha:** assemble report + final results; **all:** write your section. **Submit.**
 
 ---
 
