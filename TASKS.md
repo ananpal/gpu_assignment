@@ -129,12 +129,10 @@ No emailing files around.
 **Owns:** the GitHub repo + folder skeleton, and the final results (correctness at scale + benchmarks)
 
 **What to do — Part A: repo setup (FRIDAY, first thing — unblocks everyone)**
-1. Create the GitHub repo `cryptography-on-gpu` and add all 5 members as collaborators.
-2. Create the **modular folder skeleton** from `REPO_STRUCTURE.md` (folder per member,
-   shared `include/`, `data/`+`results/` gitignored). Commit each folder with a placeholder
-   README so they exist in Git from the start.
-3. Add the `.gitignore` (ignore `data/*.bin`, binaries, `build/`) and push to `main`.
-4. Tell everyone the repo URL + their folder so they can clone and start pushing.
+> Repo + modular folder skeleton already exist at `ananpal/gpu_assignment` (per `REPO_STRUCTURE.md`).
+1. Make sure everyone has access (repo is public; or add all 5 as collaborators).
+2. Confirm the `.gitignore` excludes `data/*.bin`, binaries, `build/`.
+3. Tell everyone their folder under `src/` so they can clone and start pushing.
 
 **What to do — Part B: large-scale runs (SAT evening → SUN)**
 1. Set up the machine once: confirm `nvidia-smi` + `nvcc --version`, install `libssl-dev`,
@@ -165,31 +163,10 @@ Each member writes the section for their own piece; Mohshinsha stitches it toget
 
 ---
 
-## Timeline (Fri → Sun)
+## Timeline
 
-### Friday (today) — setup & unblock
-- **Mudrik (FIRST):** create the GitHub repo + modular folder skeleton (`REPO_STRUCTURE.md`),
-  add everyone as collaborator, push `.gitignore`. Share the URL. *This unblocks all pushes.*
-- **Anand:** lead 15-min sync, lock `IO_CONTRACT.md`, get `sha256_multi.cu` printing `ALL PASS`.
-- **Mohshinsha:** start the `Makefile`; everyone runs `colab_starter.ipynb` → `SETUP OK`.
-- **Mudrik:** set up the GPU machine (driver, nvcc, libssl-dev, clone repo).
-- **Karan:** start porting the generator to C++/OpenSSL.
-- ✅ End of Friday: repo live, contract agreed, everyone's GPU compiles, Anand's base passes.
-
-### Saturday — build it (the big day)
-- **Karan:** finish C++ generator → small dataset out by morning, then a 1M set.
-- **Anand:** kernel loads Karan's dataset, writes `gpu_digests.bin` (test small).
-- **Arundhati:** `validate.cpp` working + edge-case suite, run against Anand+Karan output.
-- **Mohshinsha:** `benchmark.cu` timing on small data; `make` builds everything.
-- 🎯 **End of Saturday (the milestone):** validator reports **ALL MATCH** on small data, all code pushed to Git.
-
-### Sunday morning — scale up & benchmark (Mudrik's turn)
-- **Mudrik:** pull latest, run 1M then 10M — confirm ALL MATCH at scale, run benchmarks, make charts.
-- **Anand:** light kernel optimization if time (block size, constant memory).
-- **Arundhati:** lock the correctness claim; **Karan:** generate any extra dataset sizes Mudrik needs.
-
-### Sunday afternoon — integrate & submit
-- **Mohshinsha:** assemble report + final results; **all:** write your section. **Submit.**
+The day-by-day schedule lives in [docs/DAYWISE_PLAN.md](docs/DAYWISE_PLAN.md)
+(a temporary working file, removed before submission).
 
 ---
 

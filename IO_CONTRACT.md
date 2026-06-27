@@ -1,9 +1,8 @@
 # I/O Contract — GPU SHA-256 Project
 
-**Owner:** Member 1 (Algorithm & Spec)
-**Status:** Day-1 deliverable. This is the single source of truth. If a format
-needs to change, change it HERE first, then tell the team — do not change it
-silently in your own code.
+**Owner:** Anand (I/O contract)
+**Status:** This is the single source of truth for data formats. If a format needs
+to change, change it HERE first, then tell the team — never silently in your own code.
 
 ---
 
@@ -15,7 +14,7 @@ silently in your own code.
 | Output size | **32 bytes (256 bits)** per message — always |
 | Parallelization model | **One GPU thread hashes one message** |
 | Language / platform | **CUDA C/C++**, compiled with `nvcc` |
-| Reference platform | **Python `hashlib.sha256`** on CPU |
+| Reference platform | **OpenSSL `SHA256` (C++)** on CPU |
 | Byte order of digest | **Big-endian** (standard SHA-256 output order) |
 
 > We hash **many independent messages**, not one giant file. Each message is
@@ -170,11 +169,5 @@ it does not change the contract.
 
 ---
 
-## 8. What each member can now start independently
-
-- **M2** — generate dataset in the §4 format + reference output + test vectors (§5).
-- **M3** — implement §3.1 and §3.2 against the §2 layout.
-- **M4** — write a diff tool that loads `digests.bin` (from M3) and `expected_digests.bin` (from M2) and compares slot `i` for all `i`; report first mismatch.
-- **M5** — time the kernel launch (CUDA events) over the dataset; report hashes/sec and GB/s.
-
-If any of these need a format change, it goes through M1 and gets updated in this file.
+> **Changing the format:** any change goes through Anand (contract owner) and is updated
+> in this file first. Team roles and the schedule live in [TASKS.md](TASKS.md).
