@@ -21,7 +21,13 @@
 // and offsets[i] / lengths[i] locate message i within it.
 //
 // Returns a buffer of num_messages * 32 bytes; the digest for message i is at
-// bytes [i*32 .. i*32+31]. Aborts the process if any CUDA call fails.
+// bytes [i*32 .. i*32+31]. Returns an empty vector if num_messages <= 0.
+// Throws std::runtime_error if a CUDA call fails, or std::invalid_argument on
+// null offsets/lengths — the caller should wrap the call in try/catch.
+//
+// NOTE: the caller is responsible for passing a consistent dataset — every
+// offsets[i]+lengths[i] must lie within total_bytes (the engine cannot detect
+// an out-of-range offset; it would read out of bounds on the device).
 std::vector<unsigned char> sha256_gpu_hash(
     const unsigned char* messages, std::size_t total_bytes,
     const int* offsets, const int* lengths, int num_messages);
