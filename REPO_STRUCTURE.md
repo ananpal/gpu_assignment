@@ -35,9 +35,7 @@ gpu_assignment/
 │   └── dataset_io.hpp        # read/write the .bin files     (shared)
 │
 ├── src/
-│   ├── common/
-│   │   └── dataset_io.cpp    # dataset I/O implementation
-│   ├── kernel/               # Anand — the GPU program
+│   ├── kernel/               # GPU program — owner adds sha256_gpu.cu
 │   │   ├── sha256_gpu.cu
 │   │   └── README.md         # status + how to build/run
 │   ├── cpu_reference/        # Karan — dataset generator + CPU reference
@@ -61,14 +59,9 @@ gpu_assignment/
 │   └── .gitkeep
 │
 └── docs/
-    └── report/               # report, one file per member (no merge conflicts)
-        ├── 00_overview.md
-        ├── 01_algorithm.md       # Anand
-        ├── 02_cpu_reference.md   # Karan
-        ├── 03_kernel.md          # Anand
-        ├── 04_validation.md      # Arundhati
-        ├── 05_benchmark.md       # Mohshinsha / Mudrik
-        └── 06_security.md        # all
+    ├── SHA256_GPU_OVERVIEW.md  # SHA-256 / CPU vs GPU background
+    └── report/                 # each member adds their own section when ready
+        └── README.md
 ```
 
 ---

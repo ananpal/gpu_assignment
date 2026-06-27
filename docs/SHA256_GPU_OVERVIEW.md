@@ -1,4 +1,4 @@
-# SHA-256 Hashing on CPU vs GPU — Group 29 Overview
+# SHA-256 Hashing on CPU vs GPU — Overview
 
 > **Note:** There is no algorithm called “SHA5.” This project uses **SHA-256**, part of the SHA-2 family defined in NIST FIPS 180-4. When people say “SHA hashing” in practice, they usually mean SHA-256 or SHA-512.
 
@@ -85,9 +85,9 @@ Message bytes
 └─────────────┘
 ```
 
-### Typical CPU implementation (our project baseline)
+### Typical CPU implementation (project baseline)
 
-We use **OpenSSL** in C++ as the trusted CPU reference:
+The trusted CPU baseline uses **OpenSSL** in C++ (see [IO_CONTRACT.md](../IO_CONTRACT.md)):
 
 ```cpp
 #include <openssl/sha.h>
@@ -153,15 +153,15 @@ What GPU does **not** magically fix:
 
 ---
 
-## Our approach: breaking the problem for GPU parallelization
+## Pipeline approach: breaking the problem for GPU parallelization
 
-### What we have on CPU
+### CPU-side stages
 
-1. **Dataset generator** (Karan) — creates N messages + `expected_digests.bin` via OpenSSL
+1. **Dataset generation** — create N messages and `expected_digests.bin` via OpenSSL
 2. **Packed layout** — all messages in one buffer with `offsets[]` and `lengths[]`
-3. **Validator** (Arundhati) — compares GPU output to CPU reference byte-by-byte
+3. **Validation** — compare GPU output to the CPU reference byte-by-byte
 
-### What we do on GPU
+### GPU stage
 
 We use the **embarrassingly parallel** model from [IO_CONTRACT.md](../IO_CONTRACT.md):
 
@@ -244,12 +244,12 @@ We report **hashes/sec** and **GB/s** in benchmarks and compare with/without dat
 | Our trick? | **One GPU thread = one message** — not parallel inside one hash |
 | Why faster? | Aggregate throughput on large batches beats serial CPU loops |
 
-**Golden rule for Group 29:** correctness before speed. Prove `""` and `"abc"` NIST vectors first, then scale to millions of messages.
+**Golden rule:** correctness before speed. Prove `""` and `"abc"` NIST vectors first, then scale to millions of messages.
 
 ---
 
 ## References
 
 - [IO_CONTRACT.md](../IO_CONTRACT.md) — data formats and kernel contract
-- [TASKS.md](../TASKS.md) — team deliverables and timeline
+- [TASKS.md](../TASKS.md) — project task plan
 - NIST FIPS 180-4 — SHA-256 specification

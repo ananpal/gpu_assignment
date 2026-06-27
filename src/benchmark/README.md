@@ -1,23 +1,9 @@
-# Benchmark — Mohshinsha Harunsha Shahmadar (G25AIT1093)
+# Benchmark module
 
-**Status:** stub — implement `benchmark.cu`
-
-## Build
+Add `benchmark.cu` here. From repo root:
 
 ```bash
-make benchmark
+make build-system  # build-system + benchmark tasks
+make benchmark     # build (after benchmark.cu exists)
+make pipeline      # full pipeline + expected outputs
 ```
-
-## Run
-
-```bash
-./build/benchmark <data_dir>
-```
-
-## Deliverables
-
-- CUDA event timing for kernel launch
-- Hashes/sec and GB/s (with and without H↔D transfer)
-- CPU OpenSSL baseline comparison
-
-See [TASKS.md](../../TASKS.md) and [IO_CONTRACT.md](../../IO_CONTRACT.md) §7.
