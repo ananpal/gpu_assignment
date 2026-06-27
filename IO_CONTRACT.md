@@ -79,7 +79,7 @@ message `i`.
 
 ## 3. Function signatures (everyone uses these names)
 
-### 3.1 The GPU kernel (M3 implements)
+### 3.1 The GPU kernel
 
 ```c
 __global__ void sha256_kernel(
@@ -90,7 +90,7 @@ __global__ void sha256_kernel(
     int                  num_messages);
 ```
 
-### 3.2 The device helper (M3 implements)
+### 3.2 The device helper
 
 ```c
 // Hashes ONE message; writes exactly 32 bytes to `out`.
