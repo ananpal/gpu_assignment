@@ -1,12 +1,19 @@
 # GPU SHA-256 build system (Mohshinsha / G25AIT1093)
 
+# C++ compiler for .cpp files (cpu_reference, etc.)
 CXX      ?= g++
+# NVIDIA CUDA compiler for .cu GPU sources
 NVCC     ?= nvcc
+# Flags passed to g++: C++17, warnings, shared headers in include/
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Iinclude
+# Flags passed to nvcc: C++17 and include/ search path
 NVCCFLAGS ?= -std=c++17 -Iinclude
+# Link OpenSSL for CPU SHA-256 baseline (SHA256 in validate/benchmark/cpu_reference)
 LDFLAGS_SSL ?= -lssl -lcrypto
 
+# Compiled binaries written here (gitignored)
 BUILD_DIR := build
+# Default dataset directory for hash_dataset, validate, benchmark
 DATA_DIR  ?= data
 
 SMOKE_SRC      := src/kernel/sha256_smoke_test.cu
