@@ -21,7 +21,7 @@ CPU_REF_SRC    := src/cpu_reference/cpu_reference.cpp
 HASH_DATASET_SRC := src/kernel/hash_dataset.cu
 KERNEL_SRC     := src/kernel/sha256_gpu.cu
 VALIDATE_SRC   := src/validate/validate.cpp
-BENCHMARK_SRC  := src/benchmark/benchmark.cu
+BENCHMARK_SRC  := src/benchmark/benchmark.cpp
 SHA256_CUH     := include/sha256.cuh
 
 DATA_FILES := messages.bin offsets.bin lengths.bin meta.txt expected_digests.bin gpu_digests.bin
@@ -145,7 +145,7 @@ pipeline:
 	@echo ""
 	@echo "Step 4 — Throughput benchmark"
 	@echo "  Command:  ./$(BUILD_DIR)/benchmark $(DATA_DIR)/"
-	@echo "  Expected: hashes/sec, GB/s (kernel-only and with H<->D transfer)"
+	@echo "  Expected: hashes/sec, GB/s (CPU vs sha256_gpu_hash API)"
 	@echo ""
 	@echo "Or run all steps:  make run N=100000"
 
@@ -178,8 +178,8 @@ $(BUILD_DIR)/hash_dataset: $(HASH_DATASET_SRC) $(KERNEL_SRC) $(SHA256_CUH) | $(B
 $(BUILD_DIR)/validate: $(VALIDATE_SRC) $(KERNEL_SRC) $(SHA256_CUH) | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(VALIDATE_SRC) $(KERNEL_SRC) -o $@ $(LDFLAGS_SSL)
 
-$(BUILD_DIR)/benchmark: $(BENCHMARK_SRC) $(SHA256_CUH) | $(BUILD_DIR)
-	$(NVCC) $(NVCCFLAGS) $< -o $@ $(LDFLAGS_SSL)
+$(BUILD_DIR)/benchmark: $(BENCHMARK_SRC) $(KERNEL_SRC) $(SHA256_CUH) | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(BENCHMARK_SRC) $(KERNEL_SRC) -o $@ $(LDFLAGS_SSL)
 
 N ?= 100000
 run: _require_cuda all

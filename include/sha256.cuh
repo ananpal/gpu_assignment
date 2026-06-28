@@ -2,7 +2,7 @@
 // sha256.cuh — shared SHA-256 device code (constants, macros, device
 // functions, kernel). Include this from a single .cu program.
 //
-// Used by: src/kernel/sha256_gpu.cu (and later src/benchmark/benchmark.cu).
+// Used by: src/kernel/sha256_gpu.cu
 // The hash math is verified against the NIST vectors (empty, "abc",
 // the 56-byte string, multi-block).
 // =====================================================================
