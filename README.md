@@ -22,7 +22,7 @@ src/validate/         Arundhati
   validate.cpp        edge-case suite + full dataset GPU-vs-CPU check
 
 src/benchmark/        Mohshinsha
-  benchmark.cu        CUDA-event timing, GPU vs CPU hashes/sec and GB/s
+  benchmark.cpp       CUDA vs CPU timing via sha256_gpu_hash API
 
 scripts/
   colab_starter.ipynb GPU setup check (Colab)
