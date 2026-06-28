@@ -14,6 +14,9 @@ a.out
 # Datasets (generated — too large to commit)
 *.bin
 
+# Benchmark CSV output (generated at runtime)
+results/*.csv
+
 # Python
 __pycache__/
 *.pyc

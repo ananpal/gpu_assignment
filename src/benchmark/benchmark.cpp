@@ -8,10 +8,12 @@
 //   1. CPU baseline — OpenSSL SHA256(), one message at a time (serial loop)
 //   2. GPU batch API — sha256_gpu_hash() (alloc, H2D, kernel, D2H)
 //
-// Output includes both rows and a GPU-vs-CPU speedup for the report.
+// Prints a table to stdout and writes CSV under results/ for the report.
 //
 // Build: make benchmark
-// Run:   ./build/benchmark [data_dir]
+// Run:   ./build/benchmark [data_dir] [--output results/benchmark_N.csv]
+//        Default output: results/benchmark_<num_messages>.csv
+//        Also appends one row to results/benchmark_summary.csv (scaling log)
 // Exit:  0 on success, 1 on invalid dataset or GPU API failure
 // =====================================================================
 #include "../../include/sha256_gpu.hpp"
@@ -21,11 +23,15 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 // ---- Dataset I/O (same layout as hash_dataset.cu / IO_CONTRACT §4) ----
 
@@ -78,6 +84,15 @@ struct TimingResult {
     double gbps;
 };
 
+struct BenchmarkRecord {
+    std::string data_dir;
+    int num_messages;
+    size_t input_bytes;
+    TimingResult cpu;
+    TimingResult gpu;
+    double speedup;
+};
+
 static TimingResult make_result(double ms, int num_messages, size_t input_bytes) {
     TimingResult r{};
     r.ms = ms;
@@ -89,7 +104,6 @@ static TimingResult make_result(double ms, int num_messages, size_t input_bytes)
     return r;
 }
 
-// CPU baseline for report comparison: serial OpenSSL SHA256 per message.
 static TimingResult time_cpu(const unsigned char* messages, const int* offsets,
                              const int* lengths, int num_messages, size_t input_bytes) {
     const auto t0 = std::chrono::steady_clock::now();
@@ -103,7 +117,6 @@ static TimingResult time_cpu(const unsigned char* messages, const int* offsets,
     return make_result(ms, num_messages, input_bytes);
 }
 
-// GPU via sha256_gpu_hash(): warm-up, then timed call through the shared API.
 static TimingResult time_gpu_api(const unsigned char* messages, size_t total_bytes,
                                  const int* offsets, const int* lengths,
                                  int num_messages, size_t input_bytes) {
@@ -133,8 +146,79 @@ static void print_row(const char* label, const TimingResult& r) {
               << "\n";
 }
 
+static std::string csv_header() {
+    return "data_dir,num_messages,input_bytes,"
+           "cpu_ms,cpu_hashes_per_sec,cpu_gbps,"
+           "gpu_ms,gpu_hashes_per_sec,gpu_gbps,speedup\n";
+}
+
+static std::string csv_row(const BenchmarkRecord& rec) {
+    std::ostringstream s;
+    s << std::fixed << std::setprecision(6);
+    s << rec.data_dir << ','
+      << rec.num_messages << ','
+      << rec.input_bytes << ','
+      << rec.cpu.ms << ','
+      << rec.cpu.hashes_per_sec << ','
+      << rec.cpu.gbps << ','
+      << rec.gpu.ms << ','
+      << rec.gpu.hashes_per_sec << ','
+      << rec.gpu.gbps << ','
+      << rec.speedup << '\n';
+    return s.str();
+}
+
+static void write_csv_file(const std::string& path, const BenchmarkRecord& rec) {
+    fs::create_directories(fs::path(path).parent_path());
+    std::ofstream out(path);
+    if (!out) {
+        std::cerr << "error: failed to write " << path << "\n";
+        std::exit(1);
+    }
+    out << csv_header() << csv_row(rec);
+    if (!out) {
+        std::cerr << "error: failed to write " << path << "\n";
+        std::exit(1);
+    }
+}
+
+static void append_summary_csv(const std::string& path, const BenchmarkRecord& rec) {
+    fs::create_directories(fs::path(path).parent_path());
+    const bool exists = fs::exists(path);
+    std::ofstream out(path, std::ios::app);
+    if (!out) {
+        std::cerr << "error: failed to append " << path << "\n";
+        std::exit(1);
+    }
+    if (!exists) out << csv_header();
+    out << csv_row(rec);
+    if (!out) {
+        std::cerr << "error: failed to append " << path << "\n";
+        std::exit(1);
+    }
+}
+
+static void parse_args(int argc, char** argv, std::string& data_dir, std::string& output_path) {
+    data_dir = "data";
+    output_path.clear();
+
+    for (int i = 1; i < argc; i++) {
+        const std::string arg = argv[i];
+        if (arg == "--output" && i + 1 < argc) {
+            output_path = argv[++i];
+        } else if (arg.rfind("--", 0) == 0) {
+            std::cerr << "error: unknown option " << arg << "\n";
+            std::exit(1);
+        } else {
+            data_dir = arg;
+        }
+    }
+}
+
 int main(int argc, char** argv) {
-    const std::string data_dir = (argc > 1) ? argv[1] : "data";
+    std::string data_dir;
+    std::string output_path;
+    parse_args(argc, argv, data_dir, output_path);
 
     const int num_messages = read_num_messages(data_dir + "/meta.txt");
     if (num_messages <= 0) {
@@ -172,6 +256,20 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    BenchmarkRecord rec{};
+    rec.data_dir = data_dir;
+    rec.num_messages = num_messages;
+    rec.input_bytes = input_bytes;
+    rec.cpu = cpu;
+    rec.gpu = gpu;
+    rec.speedup = (cpu.ms > 0.0 && gpu.ms > 0.0) ? (cpu.ms / gpu.ms) : 0.0;
+
+    if (output_path.empty()) {
+        output_path = "results/benchmark_" + std::to_string(num_messages) + ".csv";
+    }
+    write_csv_file(output_path, rec);
+    append_summary_csv("results/benchmark_summary.csv", rec);
+
     std::cout << "================================================================\n";
     std::cout << "  SHA-256 Benchmark — CPU vs GPU comparison (for report)\n";
     std::cout << "================================================================\n";
@@ -179,6 +277,8 @@ int main(int argc, char** argv) {
     std::cout << "  num_messages: " << num_messages << "\n";
     std::cout << "  input_bytes:  " << input_bytes << "\n";
     std::cout << "  GPU API:      sha256_gpu_hash() via include/sha256_gpu.hpp\n";
+    std::cout << "  results:      " << output_path << "\n";
+    std::cout << "                results/benchmark_summary.csv (appended)\n";
     std::cout << "----------------------------------------------------------------\n";
     std::cout << std::left << std::setw(28) << "Mode"
               << std::right << std::setw(10) << "Time"
@@ -201,7 +301,7 @@ int main(int argc, char** argv) {
         std::cout << "    GPU: " << std::setprecision(0) << gpu.hashes_per_sec
                   << " hashes/s, " << std::setprecision(3) << gpu.gbps << " GB/s\n";
         std::cout << "    speedup (GPU vs CPU): "
-                  << std::setprecision(2) << (cpu.ms / gpu.ms) << "x\n";
+                  << std::setprecision(2) << rec.speedup << "x\n";
     }
     std::cout << "================================================================\n";
 
