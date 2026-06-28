@@ -1,13 +1,23 @@
 // =====================================================================
-// benchmark.cu — GPU vs CPU SHA-256 throughput benchmark (Mohshinsha)
+// benchmark.cu — GPU vs CPU SHA-256 throughput benchmark
 //
-// Loads a dataset from disk, times:
-//   1. CPU baseline (OpenSSL, serial loop)
-//   2. GPU kernel only (CUDA events around launch; data already on device)
-//   3. GPU end-to-end (H2D + kernel + D2H)
+// Loads a dataset (I/O-contract §4) and reports throughput for three modes:
+//   1. CPU baseline — OpenSSL SHA256(), one message at a time (serial loop)
+//   2. GPU kernel only — CUDA events around sha256_kernel launch; host data
+//      is already on device (excludes alloc/copy overhead)
+//   3. GPU end-to-end — CUDA events around H2D copy + kernel + D2H copy
+//
+// Metrics printed for each mode:
+//   - elapsed time (ms)
+//   - hashes/sec  = num_messages / seconds
+//   - GB/s        = input_bytes / seconds / 1e9
+//
+// Warm-up: one throwaway kernel launch before the timed GPU-kernel run.
+// Block size: default 256; override with --block-size 128|256|512 (IO_CONTRACT §7).
 //
 // Build: make benchmark
 // Run:   ./build/benchmark [data_dir] [--block-size 128|256|512]
+// Exit:  0 on success, 1 on invalid dataset or CUDA failure
 // =====================================================================
 #include "../../include/sha256.cuh"
 
@@ -22,6 +32,7 @@
 #include <string>
 #include <vector>
 
+// ---- CUDA error macro: print and exit (benchmark is a standalone tool) ----
 #define CUDA_CHECK(call)                                                      \
     do {                                                                      \
         cudaError_t _e = (call);                                              \
@@ -32,6 +43,9 @@
         }                                                                     \
     } while (0)
 
+// ---- Dataset I/O (same layout as hash_dataset.cu / IO_CONTRACT §4) ----
+
+// Read an entire file into a byte buffer. Exits on open failure.
 static std::vector<unsigned char> read_file(const std::string& path) {
     std::ifstream f(path, std::ios::binary | std::ios::ate);
     if (!f) {
@@ -45,6 +59,7 @@ static std::vector<unsigned char> read_file(const std::string& path) {
     return buf;
 }
 
+// Parse num_messages=N from meta.txt. Exits on missing or malformed file.
 static int read_num_messages(const std::string& path) {
     std::ifstream f(path);
     if (!f) {
@@ -66,6 +81,7 @@ static int read_num_messages(const std::string& path) {
     }
 }
 
+// True when every offsets[i]+lengths[i] lies inside the messages buffer.
 static bool dataset_in_bounds(const int* offsets, const int* lengths, int n, size_t total_bytes) {
     for (int i = 0; i < n; i++) {
         if (offsets[i] < 0 || lengths[i] < 0) return false;
@@ -75,12 +91,15 @@ static bool dataset_in_bounds(const int* offsets, const int* lengths, int n, siz
     return true;
 }
 
+// ---- Timing result and derived metrics ----
+
 struct TimingResult {
-    double ms;
-    double hashes_per_sec;
-    double gbps;
+    double ms;              // wall-clock or CUDA-event elapsed time
+    double hashes_per_sec;  // num_messages / seconds
+    double gbps;            // input_bytes / seconds / 1e9
 };
 
+// Convert raw milliseconds into hashes/sec and input GB/s.
 static TimingResult make_result(double ms, int num_messages, size_t input_bytes) {
     TimingResult r{};
     r.ms = ms;
@@ -92,6 +111,9 @@ static TimingResult make_result(double ms, int num_messages, size_t input_bytes)
     return r;
 }
 
+// ---- Kernel launch (IO_CONTRACT §7 grid configuration) ----
+
+// Launch sha256_kernel and wait for completion. Used for warm-up and timed runs.
 static void launch_kernel(unsigned char* d_messages, int* d_offsets, int* d_lengths,
                           unsigned char* d_digests, int num_messages, int threads_per_block) {
     const int num_blocks =
@@ -103,6 +125,9 @@ static void launch_kernel(unsigned char* d_messages, int* d_offsets, int* d_leng
     CUDA_CHECK(cudaDeviceSynchronize());
 }
 
+// ---- Timed benchmark paths ----
+
+// CPU baseline: serial OpenSSL SHA256 over every message in the dataset.
 static TimingResult time_cpu(const unsigned char* messages, const int* offsets,
                              const int* lengths, int num_messages, size_t input_bytes) {
     const auto t0 = std::chrono::steady_clock::now();
@@ -116,6 +141,7 @@ static TimingResult time_cpu(const unsigned char* messages, const int* offsets,
     return make_result(ms, num_messages, input_bytes);
 }
 
+// GPU kernel only: data already resident on device. Warm-up launch, then timed launch.
 static TimingResult time_gpu_kernel_only(unsigned char* d_messages, int* d_offsets,
                                          int* d_lengths, unsigned char* d_digests,
                                          int num_messages, int threads_per_block,
@@ -138,6 +164,7 @@ static TimingResult time_gpu_kernel_only(unsigned char* d_messages, int* d_offse
     return make_result(static_cast<double>(ms), num_messages, input_bytes);
 }
 
+// GPU end-to-end: fresh alloc + H2D + kernel + D2H, all inside the timed window.
 static TimingResult time_gpu_with_transfer(const unsigned char* h_messages, size_t total_bytes,
                                            const int* h_offsets, const int* h_lengths,
                                            int num_messages, int threads_per_block,
@@ -185,6 +212,9 @@ static TimingResult time_gpu_with_transfer(const unsigned char* h_messages, size
     return make_result(static_cast<double>(ms), num_messages, input_bytes);
 }
 
+// ---- Output formatting ----
+
+// Print one row of the results table (mode label + ms + hashes/s + GB/s).
 static void print_row(const char* label, const TimingResult& r) {
     std::cout << std::left << std::setw(28) << label
               << std::right << std::fixed << std::setprecision(2) << std::setw(10) << r.ms << " ms"
@@ -193,6 +223,9 @@ static void print_row(const char* label, const TimingResult& r) {
               << "\n";
 }
 
+// ---- CLI parsing ----
+
+// Parse data_dir (default "data") and optional --block-size N (128|256|512).
 static void parse_args(int argc, char** argv, std::string& data_dir, int& threads_per_block) {
     data_dir = "data";
     threads_per_block = 256;
@@ -245,6 +278,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Stage dataset on device once; kernel-only timing reuses these buffers.
     unsigned char *d_messages = nullptr, *d_digests = nullptr;
     int *d_offsets = nullptr, *d_lengths = nullptr;
     const size_t digest_bytes = static_cast<size_t>(num_messages) * 32;
