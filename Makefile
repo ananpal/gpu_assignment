@@ -6,8 +6,10 @@ CXX      ?= g++
 NVCC     ?= nvcc
 # Flags passed to g++: C++17, warnings, shared headers in include/
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Iinclude
-# Flags passed to nvcc: C++17 and include/ search path
-NVCCFLAGS ?= -std=c++17 -Iinclude
+# Flags passed to nvcc: C++17, include/, suppress known Colab/CUDA noise
+NVCCFLAGS ?= -std=c++17 -Iinclude -Wno-deprecated-gpu-targets -diag-suppress 20050
+# Extra flags for cpu_reference (OpenSSL 3.0 SHA256_* deprecation warnings)
+CXXFLAGS_SSL ?= $(CXXFLAGS) -Wno-deprecated-declarations
 # Link OpenSSL for CPU SHA-256 baseline (SHA256 in validate/benchmark/cpu_reference)
 LDFLAGS_SSL ?= -lssl -lcrypto
 
@@ -170,7 +172,7 @@ $(BUILD_DIR)/smoke_test: $(SMOKE_SRC) $(SHA256_CUH) | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 $(BUILD_DIR)/cpu_reference: $(CPU_REF_SRC) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS_SSL)
+	$(CXX) $(CXXFLAGS_SSL) $< -o $@ $(LDFLAGS_SSL)
 
 $(BUILD_DIR)/hash_dataset: $(HASH_DATASET_SRC) $(KERNEL_SRC) $(SHA256_CUH) | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(HASH_DATASET_SRC) $(KERNEL_SRC) -o $@
