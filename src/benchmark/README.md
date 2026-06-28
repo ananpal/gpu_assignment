@@ -1,16 +1,23 @@
 # src/benchmark — Throughput benchmarks
 
-**Owner:** Mohshinsha · **Status:** to build
+**Owner:** Mohshinsha · **Status:** done
 
 Times GPU vs CPU and reports throughput + scaling.
 
 ## Files
-- `benchmark.cu` — *(to build)* CUDA-event timing around the kernel; also times the
+- `benchmark.cu` — CUDA-event timing around the kernel; also times the
   CPU baseline (OpenSSL, single-threaded). Reports hashes/sec and GB/s.
 
 ## Build & run
 ```
-nvcc benchmark.cu -o benchmark && ./benchmark
+make benchmark
+./build/benchmark data
+./build/benchmark data --block-size 256
+```
+
+Or run the full pipeline:
+```
+make run N=100000
 ```
 
 ## Notes for anyone covering this

@@ -2,6 +2,7 @@
 .claude/
 
 # Build artifacts
+build/
 *.o
 *.out
 hello
