@@ -17,6 +17,13 @@ LDFLAGS_SSL ?= -lssl -lcrypto
 BUILD_DIR := build
 # Default dataset directory for hash_dataset, validate, benchmark
 DATA_DIR  ?= data
+# IEEE LaTeX report (report/main.tex -> report/main.pdf)
+REPORT_DIR  := report
+REPORT_TEX  := $(REPORT_DIR)/main.tex
+REPORT_BIB  := $(REPORT_DIR)/references.bib
+REPORT_PDF  := $(REPORT_DIR)/main.pdf
+# LaTeX intermediates removed after a successful report build
+REPORT_AUX  := aux log out bbl blg toc fls fdb_latexmk synctex.gz
 
 SMOKE_SRC      := src/kernel/sha256_smoke_test.cu
 CPU_REF_SRC    := src/cpu_reference/cpu_reference.cpp
@@ -31,8 +38,8 @@ DATA_FILES := messages.bin offsets.bin lengths.bin meta.txt expected_digests.bin
 # 1 if nvcc is on PATH, else 0 (evaluated when Make starts)
 CUDA_AVAILABLE := $(shell command -v $(NVCC) >/dev/null 2>&1 && echo 1 || echo 0)
 
-.PHONY: all help status pipeline run clean _require_cuda \
-        smoke_test cpu_reference hash_dataset validate benchmark
+.PHONY: all help status pipeline run clean report clean-report _clean_report_aux \
+        _require_cuda smoke_test cpu_reference hash_dataset validate benchmark
 
 .DEFAULT_GOAL := help
 
@@ -52,7 +59,9 @@ help:
 	@echo "  make benchmark      Throughput benchmark harness"
 	@echo "  make all            Build every module"
 	@echo "  make run N=100000   End-to-end pipeline"
-	@echo "  make clean          Remove $(BUILD_DIR)/"
+	@echo "  make report         Build $(REPORT_PDF) from LaTeX (removes aux files)"
+	@echo "  make clean          Remove $(BUILD_DIR)/ and LaTeX aux files in $(REPORT_DIR)/"
+	@echo "  make clean-report   Also remove $(REPORT_PDF)"
 	@echo ""
 	@echo "Quick check:  make status"
 
@@ -196,8 +205,25 @@ run: _require_cuda all
 	./$(BUILD_DIR)/benchmark $(DATA_DIR)/
 	@echo "Pipeline complete."
 
-clean:
+report: $(REPORT_TEX)
+	@echo "==> Building project report: $(REPORT_PDF)"
+	@command -v pdflatex >/dev/null 2>&1 || { \
+		echo "error: pdflatex not found — install a TeX distribution (TeX Live / MacTeX)"; \
+		exit 1; \
+	}
+	cd $(REPORT_DIR) && pdflatex -interaction=nonstopmode main.tex
+	cd $(REPORT_DIR) && pdflatex -interaction=nonstopmode main.tex
+	@$(MAKE) --no-print-directory _clean_report_aux
+	@echo "==> Report ready: $(REPORT_PDF)"
+
+_clean_report_aux:
+	@cd $(REPORT_DIR) && rm -f $(foreach ext,$(REPORT_AUX),main.$(ext))
+
+clean: _clean_report_aux
 	rm -rf $(BUILD_DIR)
+
+clean-report: clean
+	rm -f $(REPORT_PDF)
 
 _check_file:
 	@if [ -f "$(FILE)" ]; then \
