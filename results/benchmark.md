@@ -47,11 +47,16 @@ The benchmark is **not** a single timed run. For each data point:
 - **Correctness gate on every point.** GPU digests are compared to the CPU
   reference for all messages; for the real `data/` set they are *also* compared
   to `expected_digests.bin`. A mismatch is reported, never hidden.
-- **Two device-time views:**
-  - **end-to-end** = H2D + kernel + D2H (what a user waiting on a result sees),
-  - **kernel-only** = pure compute (what the parallelism actually buys you).
-  Steady-state numbers exclude one-time `cudaMalloc`, which is not representative
-  of repeated hashing.
+- **Three measurement layers** (smallest → largest scope):
+  - **kernel-only** = pure compute (what the parallelism actually buys you);
+  - **device end-to-end** = H2D + kernel + D2H with device buffers **allocated
+    once and reused** (steady-state transfer + compute);
+  - **production full-call** = one `sha256_gpu_hash()` invocation =
+    `cudaMalloc → H2D → kernel → D2H → cudaFree`, i.e. what `validate`,
+    `hash_dataset`, and `make benchmark` actually pay **per call**.
+  The first two exclude one-time allocation (fair for *repeated* hashing into the
+  same buffers); the third includes it (fair for *one-shot* API calls). §4a
+  reports the production full-call path explicitly so neither view is misleading.
 
 The harness emits machine-readable CSVs:
 
@@ -83,14 +88,15 @@ the committed record.
 
 ## 4. Real dataset (`data/`, 1,000,000 messages)
 
-End-to-end GPU time broken into stages (median):
+**Device end-to-end** GPU time broken into stages (median, device buffers reused —
+*excludes* per-call `cudaMalloc`/`cudaFree`; see §4a for the full production call):
 
 | Stage | Time (ms) | Share |
 |---|---|---|
 | Host→Device copy | 3.59 | 31% |
 | **Kernel (compute)** | **3.39** | **29%** |
 | Device→Host copy | 4.54 | 39% |
-| **End-to-end total** | **11.55** | 100% |
+| **Device end-to-end total** | **11.55** | 100% |
 
 | Metric | CPU | GPU | Speedup |
 |---|---|---|---|
@@ -101,6 +107,62 @@ End-to-end GPU time broken into stages (median):
 **Key insight:** for this message size the kernel is only ~29% of wall time —
 **PCIe transfer dominates** (≈70%). The compute is ~63× faster than the CPU; the
 practical end-to-end win (~18×) is gated by getting data on and off the device.
+
+---
+
+## 4a. Production full-call path (`sha256_gpu_hash`, incl. `cudaMalloc`/`cudaFree`)
+
+The §4 numbers reuse device buffers, so they measure *repeated* hashing. The
+production API in [src/kernel/sha256_gpu.cu](../src/kernel/sha256_gpu.cu) — the
+function `validate`, `hash_dataset`, and `make benchmark` all call — does
+`cudaMalloc → H2D → kernel → D2H → cudaFree` on **every** invocation. Measuring
+that actual function (1M `data/` messages, median of 20 calls, same GPU) gives the
+honest one-shot cost:
+
+| Path | Time | Throughput | GB/s | Speedup vs CPU |
+|---|---:|---:|---:|---:|
+| **`sha256_gpu_hash()` full call** (malloc→…→free, median of 20) | **25.19 ms** | 39.7 M/s | 1.27 | **8.5×**ᵃ |
+| device end-to-end (buffers reused, §4) | 17.42 ms¹ | 57.4 M/s | 1.84 | 12.3×ᵃ |
+| CPU scalar reference (1 thread) | 214.9 ms | 4.7 M/s | 0.15 | — |
+
+**Per-call `cudaMalloc`+`cudaFree` overhead = 7.77 ms ≈ 31 % of the full call.**
+Output MATCHED both the CPU reference and `data/expected_digests.bin`. So the
+defensible headline for the *production API as written* is **~8.5× end-to-end**
+(not 18×); the larger figures are real but describe compute (≈63×) or amortized,
+buffer-reuse hashing (≈18×), not a single `sha256_gpu_hash()` call.
+
+ᵃ CPU baseline here is a scalar loop, not OpenSSL — see the `make benchmark` row below for the OpenSSL comparison.
+
+> ¹ This 17.42 ms is wall-clock around the full reused-buffer iteration (incl.
+> allocating the host output `vector` each call), so it runs a touch higher than
+> the 11.55 ms CUDA-event sum in §4, which times only the three device operations.
+> Same workload, two valid stopwatches — the gap is host-side, not GPU.
+>
+> **The fix is not kernel tuning — it's allocation.** Reusing device buffers
+> across calls (or a pinned-memory pool) removes the 31 % `cudaMalloc`/`cudaFree`
+> tax and recovers the §4 end-to-end rate; that, not occupancy, is the next lever.
+
+### `make benchmark` (Mohshinsha's [benchmark.cpp](../src/benchmark/benchmark.cpp), OpenSSL baseline)
+
+The team's `make benchmark` harness calls the **same** `sha256_gpu_hash()` and uses
+**OpenSSL `SHA256()`** for the CPU baseline. This box has no `make`/OpenSSL by
+default, so it was reproduced by compiling `benchmark.cpp` + `sha256_gpu.cu`
+directly with `nvcc` against an installed Win64 OpenSSL (build/run lines in
+[benchmark_makebench_run.txt](benchmark_makebench_run.txt), CSV
+[benchmark_makebench_1000000.csv](benchmark_makebench_1000000.csv)):
+
+| Mode (1M `data/`) | Time | Throughput | Speedup |
+|---|---:|---:|---:|
+| CPU (OpenSSL `SHA256()`, serial) | 314.93 ms | 3.18 M/s | — |
+| GPU `sha256_gpu_hash()` (full prod. call) | 19.98 ms | 50.0 M/s | **15.76×** |
+
+`benchmark.cpp` times a single call after one warm-up; its 19.98 ms lands inside
+the production full-call band above (the 20-repeat median is 25.19 ms). Notably the
+**OpenSSL one-shot CPU baseline is *slower* (315 ms) than the tight scalar loop
+(215 ms)** — for 1M tiny (~32-byte) messages, OpenSSL's per-call context init/teardown
+dominates, so its higher speedup (15.8×) reflects a slower CPU baseline, not a faster
+GPU. The honest production-path GPU number is the constant across both harnesses:
+**~20–25 ms / ~8–16× end-to-end per call**, gated by allocation + transfer.
 
 ---
 
