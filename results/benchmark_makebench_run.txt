@@ -1,0 +1,36 @@
+# `make benchmark` (src/benchmark/benchmark.cpp) — production-path run
+# Reproduced on Windows by compiling benchmark.cpp + src/kernel/sha256_gpu.cu
+# directly with nvcc (no `make`), linking the installed OpenSSL (Win64, MD).
+# GPU figure is the full sha256_gpu_hash() call: cudaMalloc -> H2D -> kernel -> D2H -> cudaFree.
+# Build:
+#   nvcc -O3 -std=c++17 -Iinclude -I"%OPENSSL%\include" -diag-suppress 20050 -Xcompiler /wd4996 \
+#        src\benchmark\benchmark.cpp src\kernel\sha256_gpu.cu -o build\benchmark.exe \
+#        "%OPENSSL%\lib\VC\x64\MD\libssl.lib" "%OPENSSL%\lib\VC\x64\MD\libcrypto.lib"
+# Run:  build\benchmark.exe data
+
+================================================================
+  SHA-256 Benchmark — CPU vs GPU comparison (for report)
+================================================================
+  dataset:      data
+  num_messages: 1000000
+  input_bytes:  31997264
+  GPU API:      sha256_gpu_hash() via include/sha256_gpu.hpp
+----------------------------------------------------------------
+Mode                              Time    Throughput     Input
+                                            hashes/s      GB/s
+----------------------------------------------------------------
+CPU (OpenSSL, serial)           314.93 ms       3175303 hashes/s     0.102 GB/s
+GPU (sha256_gpu_hash)            19.98 ms      50039030 hashes/s     1.601 GB/s
+----------------------------------------------------------------
+  Report comparison:
+    CPU: 3175303 hashes/s, 0.102 GB/s
+    GPU: 50039030 hashes/s, 1.601 GB/s
+    speedup (GPU vs CPU): 15.76x
+================================================================
+
+# Note: GPU=19.98 ms is a single timed call (benchmark.cpp does 1 warm-up + 1 timed
+# call). The 20-repeat median for the same production path is 25.19 ms
+# (results/benchmark_prodpath.csv) — both well above the 11-17 ms reused-buffer
+# end-to-end, confirming the per-call cudaMalloc/cudaFree cost.
+# CPU OpenSSL one-shot SHA256() is slower here (315 ms) than a tight scalar loop
+# (215 ms) because per-call CTX init dominates for 1M tiny (~32-byte) messages.
